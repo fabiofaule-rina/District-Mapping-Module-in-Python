@@ -1,5 +1,6 @@
 import reflex as rx
 from app.states.project_state import ProjectState, REQUIRED_BUILDING_FIELDS
+
 from app.models import COUNTRY_OPTIONS
 
 
@@ -42,7 +43,8 @@ def project_metadata_card() -> rx.Component:
                     ),
                 ),
                 default_value=ProjectState.country,
-                on_change=ProjectState.set_country,
+                #on_change=ProjectState.set_country,
+                on_change=ProjectState.set_country_code,
                 class_name="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500",
             ),
         ),
@@ -77,9 +79,7 @@ def building_layer_upload_card() -> rx.Component:
         rx.el.button(
             rx.icon("upload", class_name="mr-2 h-4 w-4"),
             "Carica e Analizza",
-            on_click=ProjectState.handle_upload(
-                rx.upload_files(upload_id="upload-buildings")
-            ),
+            on_click=ProjectState.handle_upload(rx.upload_files(upload_id="upload-buildings")),
             is_loading=ProjectState.uploading,
             class_name="mt-4 w-full flex items-center justify-center px-4 py-2 bg-sky-500 text-white font-semibold rounded-lg hover:bg-sky-600 disabled:opacity-50",
             disabled=rx.selected_files("upload-buildings").length() == 0,
@@ -132,8 +132,8 @@ def column_mapping_card() -> rx.Component:
         ),
         rx.el.div(
             rx.foreach(
-                list(REQUIRED_BUILDING_FIELDS.items()),
-                lambda item: mapping_row(item[0], item[1]),
+                REQUIRED_BUILDING_FIELDS,
+                lambda field_key: mapping_row(field_key, field_key),
             ),
             class_name="space-y-4",
         ),

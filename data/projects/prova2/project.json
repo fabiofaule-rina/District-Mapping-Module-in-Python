@@ -1,0 +1,8 @@
+{
+  "name": "prova2",
+  "description": "provaaaa",
+  "country": "LV",
+  "layers": {
+    "buildings_shp": "C:\\Fabio\\Planheat2\\District-Mapping-Module-in-Python\\data\\projects\\prova2\\layers\\buildings\\shp\\Riga_buildings_red_v3_rina\\Riga_buildings_v1.shp"
+  }
+}

@@ -7,6 +7,10 @@ from app.pages.map import map_page
 from app.pages.parameters import parameters_page
 from app.pages.kpi import kpi_page
 
+# app/app.py (esempio)
+from app.db.init_db import ensure_db
+ensure_db()
+
 
 def index() -> rx.Component:
     return rx.el.div(
