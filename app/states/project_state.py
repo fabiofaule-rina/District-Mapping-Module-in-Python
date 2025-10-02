@@ -51,18 +51,18 @@ class ProjectState(rx.State):
     # ----------------------------------------------------------------
     
     @rx.event
-    async def create_project(self):
+    def create_project(self):
         # TODO: implementa la logica di creazione progetto
         print("Creazione progetto avviata.")
         print("DEBUG: toast dovrebbe apparire ora")
         
         print("Creazione progetto avviata.")
-        rx.toast.success("TOAST 1: Progetto creato con successo.")
-        import time
-        time.sleep(2)  # ⏳ Pausa per dare tempo al toast
-        rx.toast.success("TOAST 2: Questo è un secondo messaggio.")
+        return rx.toast.success("TOAST 1: Progetto creato con successo.")
+        # import time
+        # time.sleep(2)  # ⏳ Pausa per dare tempo al toast
+        # rx.toast.success("TOAST 2: Questo è un secondo messaggio.")
 
-        rx.toast.success("Progetto creato con successo. Vai alla sezione 'Mappe' per visualizzare il layer caricato.")
+        # rx.toast.success("Progetto creato con successo. Vai alla sezione 'Mappe' per visualizzare il layer caricato.")
 
 
 
