@@ -286,21 +286,21 @@ class MainState(rx.State):
     def di_set_selected_id_field(self, col: str) -> None:
         self.di_selected_id_field = col
 
-@rx.event
-def di_save_id_field(self) -> None:
-    """Salva solo il campo ID 'semplice' e sincronizza 'map_id' UI."""
-    slug = self.active_project_slug
-    if not slug or not self.di_selected_id_field:
-        self.di_error = "Seleziona un progetto e una colonna ID."
-        return
-    self.id_field_by_project[slug] = self.di_selected_id_field
-    # sync anche con la mappatura Planheat (campo id)
-    self.map_id = self.di_selected_id_field
-    # aggiorna in memoria planheat_map_by_project (non su file ancora)
-    mp = self.planheat_map_by_project.get(slug, {})
-    mp["id"] = self.map_id
-    self.planheat_map_by_project[slug] = mp
-    self.di_info = "Colonna ID salvata."
+    @rx.event
+    def di_save_id_field(self) -> None:
+        """Salva solo il campo ID 'semplice' e sincronizza 'map_id' UI."""
+        slug = self.active_project_slug
+        if not slug or not self.di_selected_id_field:
+            self.di_error = "Seleziona un progetto e una colonna ID."
+            return
+        self.id_field_by_project[slug] = self.di_selected_id_field
+        # sync anche con la mappatura Planheat (campo id)
+        self.map_id = self.di_selected_id_field
+        # aggiorna in memoria planheat_map_by_project (non su file ancora)
+        mp = self.planheat_map_by_project.get(slug, {})
+        mp["id"] = self.map_id
+        self.planheat_map_by_project[slug] = mp
+        self.di_info = "Colonna ID salvata."
 
     @rx.event
     def di_save_planheat_mapping(self) -> None:
@@ -344,4 +344,62 @@ def di_save_id_field(self) -> None:
             self.di_info = "Mappatura Planheat salvata."
         except Exception as e:
             self.di_error = f"Errore salvataggio mappatura: {e}"
+            self.di_info = ""
+
+    @rx.event
+    def di_validate_planheat_mapping(self) -> None:
+        """Controlli base: esistenza colonne e 'numericità' ragionevole dove attesa."""
+        slug = self.active_project_slug
+        if not slug:
+            self.di_error = "Seleziona un progetto."
+            return
+
+        shp = self._resolve_project_shp(slug)
+        if not shp:
+            self.di_error = "Nessuno shapefile 'buildings' trovato."
+            return
+
+        mapping = {
+            "id": self.map_id,
+            "buildingUse": self.map_buildingUse,
+            "year": self.map_year,
+            "gfa": self.map_gfa,
+            "roof": self.map_roof,
+            "height": self.map_height,
+            "floors": self.map_floors,
+        }
+
+        try:
+            gdf = gpd.read_file(str(shp))
+            cols = set([c for c in gdf.columns if c != "geometry"])
+            # 1) esistenza
+            not_found = [lbl for key, lbl, _, _ in PLANHEAT_FIELDS if mapping.get(key) and mapping[key] not in cols]
+            if not_found:
+                self.di_error = "Colonne non trovate: " + ", ".join(not_found)
+                self.di_info = ""
+                return
+
+            # 2) numericità per alcuni campi (sample veloce)
+            numeric_keys = [("year", "int"), ("gfa", "float"), ("roof", "float"), ("height", "float"), ("floors", "int")]
+            bad = []
+            sample = gdf.sample(min(500, len(gdf)), random_state=42) if len(gdf) > 500 else gdf
+            for key, expected in numeric_keys:
+                col = mapping.get(key)
+                if not col:
+                    continue
+                s = pd.to_numeric(sample[col], errors="coerce")
+                ratio = float(s.notna().mean()) if len(s) else 0.0
+                if ratio < 0.8:  # almeno 80% convertibile
+                    bad.append(f"{dict(PLANHEAT_FIELDS)[key]} ({col}) ~{int(ratio*100)}% numerico")
+
+            if bad:
+                self.di_error = "Valori non numerici in: " + "; ".join(bad)
+                self.di_info = ""
+                return
+
+            self.di_error = ""
+            self.di_info = "Validazione OK."
+
+        except Exception as e:
+            self.di_error = f"Errore validazione: {e}"
             self.di_info = ""
