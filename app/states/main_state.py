@@ -420,10 +420,194 @@ class MainState(rx.State):
     pvgis_plots: list[str] = []
 
     pvgis_horizon_map_html: str = ""
+    pvgis_map_html_str: str = ""
+
+    @rx.var
+    def pvgis_map_html(self) -> str:
+        """Restituisce l'HTML della mappa Folium generata in memoria."""
+        return self.pvgis_map_html_str if self.pvgis_map_html_str else ""
+
+    @rx.var
+    def pvgis_map_png(self) -> str:
+        """Restituisce il percorso della mappa PNG del potenziale FV se esiste."""
+        png_path = Path("assets/pv_potential_map.png")
+        if png_path.exists():
+            return str(png_path)
+        return ""
+
+    @rx.var
+    def pvgis_map_iframe(self) -> str:
+        """Restituisce l'URL della mappa interattiva FV se esiste."""
+        map_path = Path("uploaded_files/maps/pv_potential_map.html")
+        if map_path.exists():
+            return "/uploaded_files/maps/pv_potential_map.html"
+        return ""
+
+    # Aggiungi queste computed vars nella classe MainState (dopo pvgis_horizon_map_html: str = "")
+    # Aggiungi queste computed vars nella classe MainState (dopo pvgis_horizon_map_html: str = "")
+
+    @rx.var
+    def pvgis_building_ids(self) -> list[str]:
+        """Lista degli ID edifici con risultati PVGIS."""
+        if not self.pvgis_results:
+            return []
+        return [str(k) for k in sorted(self.pvgis_results.keys()) if self.pvgis_results[k] is not None]
+
+    def get_building_energy(self, building_id: str) -> str:
+        """Energia annua per un edificio (come stringa)."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                val = float(self.pvgis_results[idx]['annual_metrics']['energy_kwh'])
+                return f"{val:.2f}"
+        except (ValueError, KeyError, TypeError):
+            pass
+        return "0.00"
+
+    def get_building_cf(self, building_id: str) -> str:
+        """Capacity factor per un edificio (come numero, senza formatting)."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                val = float(self.pvgis_results[idx]['annual_metrics']['capacity_factor'])
+                return str(val)
+        except (ValueError, KeyError, TypeError):
+            pass
+        return "0.0"
+
+    def get_building_cf_str(self, building_id: str) -> str:
+        """Capacity factor per un edificio (formattato con 3 decimali)."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                val = float(self.pvgis_results[idx]['annual_metrics']['capacity_factor'])
+                return f"{val:.3f}"
+        except (ValueError, KeyError, TypeError):
+            pass
+        return "0.000"
+
+    def get_building_yield(self, building_id: str) -> str:
+        """Produttività specifica per un edificio (come stringa)."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                val = float(self.pvgis_results[idx]['annual_metrics']['specific_yield_kwh_kw'])
+                return f"{val:.2f}"
+        except (ValueError, KeyError, TypeError):
+            pass
+        return "0.00"
+
+    def get_building_avg_power(self, building_id: str) -> str:
+        """Potenza media per un edificio (come stringa)."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                val = float(self.pvgis_results[idx]['annual_metrics']['avg_power_w'])
+                return f"{val:.2f}"
+        except (ValueError, KeyError, TypeError):
+            pass
+        return "0.00"
+
+    def get_building_max_power(self, building_id: str) -> str:
+        """Potenza massima per un edificio (come stringa)."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                val = float(self.pvgis_results[idx]['annual_metrics']['max_power_w'])
+                return f"{val:.2f}"
+        except (ValueError, KeyError, TypeError):
+            pass
+        return "0.00"
+
+    def get_building_peak_hours(self, building_id: str) -> str:
+        """Ore equivalenti per un edificio (come stringa)."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                val = float(self.pvgis_results[idx]['annual_metrics']['peak_hours_h'])
+                return f"{val:.2f}"
+        except (ValueError, KeyError, TypeError):
+            pass
+        return "0.00"
+
+    @rx.var
+    def pvgis_building_ids(self) -> list[str]:
+        """Lista degli ID edifici con risultati PVGIS."""
+        if not self.pvgis_results:
+            return []
+        return [str(k) for k in sorted(self.pvgis_results.keys()) if self.pvgis_results[k] is not None]
+
+    def get_building_energy(self, building_id: str) -> float:
+        """Energia annua per un edificio."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                return float(self.pvgis_results[idx]['annual_metrics']['energy_kwh'])
+        except (ValueError, KeyError, TypeError):
+            pass
+        return 0.0
+
+    def get_building_cf(self, building_id: str) -> float:
+        """Capacity factor per un edificio."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                return float(self.pvgis_results[idx]['annual_metrics']['capacity_factor'])
+        except (ValueError, KeyError, TypeError):
+            pass
+        return 0.0
+
+    def get_building_yield(self, building_id: str) -> float:
+        """Produttività specifica per un edificio."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                return float(self.pvgis_results[idx]['annual_metrics']['specific_yield_kwh_kw'])
+        except (ValueError, KeyError, TypeError):
+            pass
+        return 0.0
+
+    def get_building_avg_power(self, building_id: str) -> float:
+        """Potenza media per un edificio."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                return float(self.pvgis_results[idx]['annual_metrics']['avg_power_w'])
+        except (ValueError, KeyError, TypeError):
+            pass
+        return 0.0
+
+    def get_building_max_power(self, building_id: str) -> float:
+        """Potenza massima per un edificio."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                return float(self.pvgis_results[idx]['annual_metrics']['max_power_w'])
+        except (ValueError, KeyError, TypeError):
+            pass
+        return 0.0
+
+    def get_building_peak_hours(self, building_id: str) -> float:
+        """Ore equivalenti per un edificio."""
+        try:
+            idx = int(building_id)
+            if idx in self.pvgis_results and self.pvgis_results[idx]:
+                return float(self.pvgis_results[idx]['annual_metrics']['peak_hours_h'])
+        except (ValueError, KeyError, TypeError):
+            pass
+        return 0.0
+
+    @rx.var
+    def pvgis_results_list(self) -> list[tuple[str, dict]]:
+        """Converte pvgis_results dict in lista di tuple per rx.foreach tipizzato."""
+        if not self.pvgis_results:
+            return []
+        # Converte {0: {...}, 1: {...}} in [("0", {...}), ("1", {...})]
+        return [(str(k), v) for k, v in self.pvgis_results.items() if v is not None]
 
     @rx.event
     def start_pvgis_analysis(self) -> None:
-        """Prepara lo stato e avvia l'analisi step-by-step PVGIS."""
+        """Prepara lo stato e avvia l'analisi PVGIS su tutti gli edifici."""
         slug = self.active_project_slug
         if not slug:
             self.pvgis_error = "Nessun progetto selezionato."
@@ -434,62 +618,135 @@ class MainState(rx.State):
             return
         try:
             import geopandas as gpd
+            import tempfile, pickle
+            from importlib import import_module
+            import numpy as np
             gdf = gpd.read_file(str(shp))
             if gdf.crs is None:
                 gdf = gdf.set_crs(epsg=4326)
-            # Salva il path temporaneo del GDF come pickle
-            import tempfile, pickle
             tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pkl")
             pickle.dump(gdf, tmp)
             tmp.close()
             self.pvgis_gdf_path = tmp.name
             self.pvgis_total_buildings = len(gdf)
-            self.pvgis_current_idx = 0
             self.pvgis_results = {}
             self.pvgis_progress = 0
             self.pvgis_running = True
             self.pvgis_error = ""
-            self.step_pvgis_analysis()
+            pvgis_analyzer = import_module("PVGIS.pvgis_analyzer")
+            utm_epsg = gdf.crs.to_epsg()
+            for idx in range(self.pvgis_total_buildings):
+                print(f"[PVGIS] Inizio edificio {idx+1}/{self.pvgis_total_buildings}")
+                # --- Caching PVGIS ---
+                cache_dir = PROJECTS_DIR / slug / "pvgis_cache"
+                cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_file = cache_dir / f"building_{idx}.json"
+                result = None
+                if cache_file.exists():
+                    try:
+                        with open(cache_file, "r", encoding="utf-8") as f:
+                            result = json.load(f)
+                        print(f"  [PVGIS] Cache trovata per edificio {idx}")
+                    except Exception as e:
+                        print(f"  [PVGIS] Errore lettura cache edificio {idx}: {e}")
+                if result is None:
+                    try:
+                        result = pvgis_analyzer.process_building(gdf, idx, utm_epsg=utm_epsg)
+                        # Serializza e salva su file
+                        def _to_serializable(obj):
+                            if isinstance(obj, dict):
+                                # Rimuovi DataFrame e oggetti non serializzabili
+                                return {str(k): _to_serializable(v) for k, v in obj.items() if not hasattr(v, 'to_dict') and not hasattr(v, 'to_json')}
+                            elif isinstance(obj, list):
+                                return [_to_serializable(v) for v in obj]
+                            elif isinstance(obj, np.generic):
+                                return obj.item()
+                            elif isinstance(obj, (str, int, float, bool, type(None))):
+                                return obj
+                            else:
+                                return None
+                        serializable_result = _to_serializable(result) if result else None
+                        with open(cache_file, "w", encoding="utf-8") as f:
+                            json.dump(serializable_result, f, ensure_ascii=False, indent=2)
+                        print(f"  [PVGIS] Risultato salvato in cache per edificio {idx}")
+                        result = serializable_result
+                    except Exception as e:
+                        result = None
+                        print(f"[PVGIS] Errore edificio {idx}: {e}")
+                self.pvgis_results[idx] = result
+                self.pvgis_progress = int((idx+1)/self.pvgis_total_buildings*100)
+            self.pvgis_running = False
+            print("[PVGIS] Analisi completata!")
+            # --- Genera mappa Folium interattiva con potenziale FV come stringa HTML ---
+            try:
+                from PVGIS.plot_viewer_folium import plot_pv_potential_folium_file
+                valid_results = {k: v for k, v in self.pvgis_results.items() if v is not None}
+                map_path = Path("uploaded_files/maps/pv_potential_map.html")
+                plot_pv_potential_folium_file(gdf, valid_results, output_html=str(map_path))
+                self.pvgis_map_url = "/uploaded_files/maps/pv_potential_map.html"
+            except Exception as e:
+                print(f"[PVGIS] Errore generazione mappa Folium: {e}")
         except Exception as e:
-            self.pvgis_error = f"Errore inizializzazione PVGIS: {e}"
+            self.pvgis_error = f"Errore analisi PVGIS: {e}"
             self.pvgis_running = False
 
+    auto_step_pvgis: bool = False
+
     @rx.event
-    def step_pvgis_analysis(self) -> None:
-        """Elabora un edificio e aggiorna la barra di avanzamento."""
-        if not self.pvgis_running or not self.pvgis_gdf_path:
+    def toggle_auto_step_pvgis(self) -> None:
+        self.auto_step_pvgis = not self.auto_step_pvgis
+
+    @rx.var
+    def pvgis_results_ui(self) -> list[dict]:
+        """Restituisce i risultati PVGIS già formattati per la UI."""
+        results = []
+        for idx, res in self.pvgis_results.items():
+            if res is not None:
+                results.append({
+                    "building_id": str(idx),
+                    "energy": f"{res['annual_metrics']['energy_kwh']:.2f}",
+                    "cf": f"{res['annual_metrics']['capacity_factor']:.3f}",
+                    "yield": f"{res['annual_metrics']['specific_yield_kwh_kw']:.2f}",
+                    "avg_power": f"{res['annual_metrics']['avg_power_w']:.2f}",
+                    "max_power": f"{res['annual_metrics']['max_power_w']:.2f}",
+                    "peak_hours": f"{res['annual_metrics']['peak_hours_h']:.2f}",
+                })
+        return results
+
+    selected_building: str = ""
+
+    @rx.event
+    def set_selected_building(self, building_id: str) -> None:
+        self.selected_building = building_id
+
+    pvgis_map_url: str = ""
+
+    @rx.var
+    def pvgis_map_iframe(self) -> str:
+        """Restituisce l'URL della mappa Folium per iframe."""
+        return self.pvgis_map_url if self.pvgis_map_url else ""
+
+    @rx.event
+    def pvgis_generate_base_map(self) -> None:
+        """Genera la mappa base degli edifici (senza layer FV) all'avvio della pagina PVGIS."""
+        slug = self.active_project_slug
+        if not slug:
+            self.pvgis_map_url = ""
+            return
+        shp = self._resolve_project_shp(slug)
+        if not shp:
+            self.pvgis_map_url = ""
             return
         try:
-            import pickle
-            import numpy as np
-            from importlib import import_module
-            print(f"[PVGIS] Inizio step edificio {self.pvgis_current_idx+1}/{self.pvgis_total_buildings}")
-            pvgis_analyzer = import_module("PVGIS.pvgis_analyzer")
-            with open(self.pvgis_gdf_path, "rb") as f:
-                gdf = pickle.load(f)
-            idx = self.pvgis_current_idx
-            utm_epsg = gdf.crs.to_epsg()
-            print(f"[PVGIS] Chiamo process_building per idx={idx}")
-            result = pvgis_analyzer.process_building(gdf, idx, utm_epsg=utm_epsg)
-            print(f"[PVGIS] Risultato edificio {idx}: {result is not None}")
-            def _to_serializable(obj):
-                if isinstance(obj, dict):
-                    return {str(k): _to_serializable(v) for k, v in obj.items()}
-                elif isinstance(obj, list):
-                    return [_to_serializable(v) for v in obj]
-                elif isinstance(obj, np.generic):
-                    return obj.item()
-                else:
-                    return obj
-            self.pvgis_results[idx] = _to_serializable(result) if result else None
-            self.pvgis_progress = int((idx+1)/self.pvgis_total_buildings*100)
-            self.pvgis_current_idx += 1
-            print(f"[PVGIS] Avanzamento: {self.pvgis_progress}%")
-            if self.pvgis_current_idx < self.pvgis_total_buildings:
-                self.step_pvgis_analysis()  # Chiamata diretta ricorsiva
-            else:
-                self.pvgis_running = False
-                print("[PVGIS] Analisi completata!")
+            import geopandas as gpd
+            gdf = gpd.read_file(str(shp))
+            from PVGIS.plot_viewer_folium import plot_pv_potential_folium_file
+            # Mappa base: layer edifici sempre presente
+            # Aggiunta di log per debug
+            print(f"[DEBUG] Generazione mappa base: {shp}")
+            print(f"[DEBUG] Percorso output mappa base: uploaded_files/maps/pv_potential_map.html")
+            plot_pv_potential_folium_file(gdf, {}, output_html="uploaded_files/maps/pv_potential_map.html")
+            self.pvgis_map_url = "/uploaded_files/maps/pv_potential_map.html"
         except Exception as e:
-            self.pvgis_error = f"Errore step PVGIS: {e}"
-            self.pvgis_running = False
+            print(f"[PVGIS] Errore generazione mappa base: {e}")
+            self.pvgis_map_url = ""
