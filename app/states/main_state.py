@@ -6,12 +6,12 @@ import reflex as rx
 import geopandas as gpd  # <— a livello di modulo, NON dentro la classe
 import pandas as pd
 import json
+from typing import Literal, Dict
 
 PROJECTS_DIR = Path("data/projects")
 
 
-from typing import Literal
-PageLiteral = Literal["project", "data_import", "map", "parameters", "kpi"]
+PageLiteral = Literal["project", "data_import", "map", "parameters", "kpi", "pvgis"]
 
 
 # Costante (fuori dallo State) con i campi richiesti
@@ -30,6 +30,10 @@ class MainState(rx.State):
     
     # --- PROGETTI ---
     projects: list[str] = []
+
+    di_available_uses: list[str] = []      # Valori unici dalla colonna buildingUse dello shapefile
+    di_planheat_uses: list[str] = []       # Usi standard Planheat da DB
+    use_map_by_project: dict[str, dict[str, str]] = {}  # Mappatura salvata per progetto
 
     # --- SCELTA COLONNA ID per progetto ---
     id_field_by_project: dict[str, str] = {}
@@ -256,7 +260,7 @@ class MainState(rx.State):
                 v = mapping.get(key, "")
                 return v if v in cols else fallback
 
-            self.map_id          = _sel("id", chosen_id)
+            self.map_id          = _sel("id", chosen)
             self.map_buildingUse = _sel("buildingUse")
             self.map_year        = _sel("year")
             self.map_gfa         = _sel("gfa")
@@ -403,3 +407,89 @@ class MainState(rx.State):
         except Exception as e:
             self.di_error = f"Errore validazione: {e}"
             self.di_info = ""
+
+    # --- PVGIS ---
+    # --- PVGIS step-by-step ---
+    pvgis_total_buildings: int = 0
+    pvgis_current_idx: int = 0
+    pvgis_gdf_path: str = ""
+    pvgis_results: Dict[int, dict] = {}
+    pvgis_progress: int = 0
+    pvgis_running: bool = False
+    pvgis_error: str = ""
+    pvgis_plots: list[str] = []
+
+    pvgis_horizon_map_html: str = ""
+
+    @rx.event
+    def start_pvgis_analysis(self) -> None:
+        """Prepara lo stato e avvia l'analisi step-by-step PVGIS."""
+        slug = self.active_project_slug
+        if not slug:
+            self.pvgis_error = "Nessun progetto selezionato."
+            return
+        shp = self._resolve_project_shp(slug)
+        if not shp:
+            self.pvgis_error = "Nessuno shapefile 'buildings' trovato."
+            return
+        try:
+            import geopandas as gpd
+            gdf = gpd.read_file(str(shp))
+            if gdf.crs is None:
+                gdf = gdf.set_crs(epsg=4326)
+            # Salva il path temporaneo del GDF come pickle
+            import tempfile, pickle
+            tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pkl")
+            pickle.dump(gdf, tmp)
+            tmp.close()
+            self.pvgis_gdf_path = tmp.name
+            self.pvgis_total_buildings = len(gdf)
+            self.pvgis_current_idx = 0
+            self.pvgis_results = {}
+            self.pvgis_progress = 0
+            self.pvgis_running = True
+            self.pvgis_error = ""
+            self.step_pvgis_analysis()
+        except Exception as e:
+            self.pvgis_error = f"Errore inizializzazione PVGIS: {e}"
+            self.pvgis_running = False
+
+    @rx.event
+    def step_pvgis_analysis(self) -> None:
+        """Elabora un edificio e aggiorna la barra di avanzamento."""
+        if not self.pvgis_running or not self.pvgis_gdf_path:
+            return
+        try:
+            import pickle
+            import numpy as np
+            from importlib import import_module
+            print(f"[PVGIS] Inizio step edificio {self.pvgis_current_idx+1}/{self.pvgis_total_buildings}")
+            pvgis_analyzer = import_module("PVGIS.pvgis_analyzer")
+            with open(self.pvgis_gdf_path, "rb") as f:
+                gdf = pickle.load(f)
+            idx = self.pvgis_current_idx
+            utm_epsg = gdf.crs.to_epsg()
+            print(f"[PVGIS] Chiamo process_building per idx={idx}")
+            result = pvgis_analyzer.process_building(gdf, idx, utm_epsg=utm_epsg)
+            print(f"[PVGIS] Risultato edificio {idx}: {result is not None}")
+            def _to_serializable(obj):
+                if isinstance(obj, dict):
+                    return {str(k): _to_serializable(v) for k, v in obj.items()}
+                elif isinstance(obj, list):
+                    return [_to_serializable(v) for v in obj]
+                elif isinstance(obj, np.generic):
+                    return obj.item()
+                else:
+                    return obj
+            self.pvgis_results[idx] = _to_serializable(result) if result else None
+            self.pvgis_progress = int((idx+1)/self.pvgis_total_buildings*100)
+            self.pvgis_current_idx += 1
+            print(f"[PVGIS] Avanzamento: {self.pvgis_progress}%")
+            if self.pvgis_current_idx < self.pvgis_total_buildings:
+                self.step_pvgis_analysis()  # Chiamata diretta ricorsiva
+            else:
+                self.pvgis_running = False
+                print("[PVGIS] Analisi completata!")
+        except Exception as e:
+            self.pvgis_error = f"Errore step PVGIS: {e}"
+            self.pvgis_running = False

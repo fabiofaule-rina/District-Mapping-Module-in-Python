@@ -28,6 +28,7 @@ def sidebar() -> rx.Component:
             sidebar_item("Mappa", "map", "map"),
             sidebar_item("Parametri", "sliders-horizontal", "parameters"),
             sidebar_item("KPI & Esporta", "bar-chart-3", "kpi"),
+            sidebar_item("PVGIS", "sun", "pvgis"),
             class_name="flex flex-col gap-2 p-4",
         ),
         class_name="w-64 bg-white border-r border-gray-200 flex flex-col",

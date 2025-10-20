@@ -6,6 +6,7 @@ from app.pages.data_import import data_import_page
 from app.pages.map import map_page
 from app.pages.parameters import parameters_page
 from app.pages.kpi import kpi_page
+from app.pages.pvgis import pvgis_page
 
 # app/app.py (esempio)
 from app.db.init_db import ensure_db
@@ -23,6 +24,7 @@ def index() -> rx.Component:
                 ("map", map_page()),
                 ("parameters", parameters_page()),
                 ("kpi", kpi_page()),
+                ("pvgis", pvgis_page()),
                 project_page(),
             ),
             class_name="flex-1 p-8 bg-gray-50 overflow-y-auto",
