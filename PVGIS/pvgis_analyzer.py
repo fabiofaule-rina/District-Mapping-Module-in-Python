@@ -605,73 +605,43 @@ def add_horizon_impact_to_building(
 # EXPORT GEOJSON PER LEAFLET
 # ============================================================
 
-def export_geojson_for_leaflet(
-    gdf,
-    results: dict,
-    output_path: str = 'buildings_pv_potential.geojson'
-) -> None:
-    """
-    Esporta GeoJSON colorato per visualizzazione Leaflet.
-    Colore basato su Capacity Factor.
-    
-    Args:
-        gdf: GeoDataFrame originale
-        results: Dict di risultati da process_all_buildings
-        output_path: Path output GeoJSON
-    """
+# pvgis_analyzer.py
+def export_geojson_for_leaflet(gdf, results: dict, output_path: str = 'buildings_pv_potential.geojson') -> None:
+    # Leaflet vuole EPSG:4326
+    gdf_ll = gdf.to_crs(epsg=4326)
     features = []
-    
-    for idx in gdf.index:
+    for idx in gdf_ll.index:
         if idx not in results or results[idx] is None:
             continue
-        
-        building_data = results[idx]
-        geom = gdf.loc[idx, 'geometry']
-        
-        # Estrai metriche
-        energy_kwh = building_data['annual_metrics']['energy_kwh']
-        cf = building_data['annual_metrics']['capacity_factor']
-        
-        # Determina colore basato su CF
+        geom = gdf_ll.loc[idx, 'geometry']
+        energy_kwh = results[idx]['annual_metrics']['energy_kwh']
+        cf = results[idx]['annual_metrics']['capacity_factor']
         if cf >= 0.20:
-            color = "#2ECC71"  # Verde scuro
-            category = "high"
+            color, category = "#2ECC71", "high"
         elif cf >= 0.15:
-            color = "#F1C40F"  # Giallo
-            category = "medium"
+            color, category = "#F1C40F", "medium"
         elif cf >= 0.10:
-            color = "#E67E22"  # Arancione
-            category = "low"
+            color, category = "#E67E22", "low"
         else:
-            color = "#E74C3C"  # Rosso
-            category = "very_low"
-        
-        # Costruisci feature
-        feature = {
-            "type": "Feature",
-            "geometry": geom.__geo_interface__,
-            "properties": {
+            color, category = "#E74C3C", "very_low"
+        features.append({
+            "type":"Feature",
+            "geometry": json.loads(gdf_ll.loc[[idx]].to_json())["features"][0]["geometry"],
+            "properties":{
                 "building_id": int(idx),
-                "energy_kwh": round(energy_kwh, 2),
-                "capacity_factor": round(cf, 4),
+                "energy_kwh": round(energy_kwh,2),
+                "capacity_factor": round(cf,4),
                 "cf_category": category,
                 "color": color,
-                "popup_text": f"Building {idx}: {energy_kwh:.0f} kWh/year, CF {cf*100:.1f}%",
-                "peakpower_kwp": building_data['building_props']['peakpower_kwp']
+                "popup_text": f"Building {idx}: {energy_kwh:.0f} kWh/year, CF {cf*100:.1f}%"
             }
-        }
-        
-        features.append(feature)
-    
-    geojson = {
-        "type": "FeatureCollection",
-        "features": features
-    }
-    
-    with open(output_path, 'w') as f:
+        })
+    geojson = {"type":"FeatureCollection", "features": features}
+    with open(output_path, "w", encoding="utf-8") as f:
         json.dump(geojson, f, indent=2)
-    
+        
     print(f"\nGeoJSON exported: {output_path}")
+
 
 
 # ============================================================

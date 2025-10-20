@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 import folium
+import json
 import geopandas as gpd
 
 # app/services/folium_map.py
@@ -16,6 +17,39 @@ def _to_wgs84_and_fix(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     # ripara self-intersections
     gdf["geometry"] = gdf.buffer(0)
     return gdf
+
+
+def _add_geojson_overlay(m, geojson_path: Path, name: str):
+    data = json.loads(geojson_path.read_text(encoding="utf-8"))
+    folium.GeoJson(
+        data,
+        name=name,
+        style_function=lambda feat: {
+            "fillColor": feat["properties"].get("color", "#3388ff"),
+            "color": "#333333",
+            "weight": 1,
+            "fillOpacity": 0.7,
+        },
+        tooltip=folium.GeoJsonTooltip(fields=["popup_text"], aliases=["Info"])
+    ).add_to(m)
+
+def build_map_from_shp(shp_path: Path, out_html: Path, id_field: str | None = None,
+                       overlay_geojsons: list[Path] | None = None):
+    # ... costruiamo base + edifici come già fai ...
+    m = folium.Map(...)  # esistente
+
+    # (qui rimane la logica esistente per i buildings)
+    # ...
+
+    # --- Nuovi overlay opzionali (PV) ---
+    if overlay_geojsons:
+        for gj in overlay_geojsons:
+            name = gj.stem.replace("_", " ").title()
+            _add_geojson_overlay(m, gj, name)
+
+    folium.LayerControl(collapsed=False).add_to(m)
+    m.save(out_html)
+
 
 def _guess_id_column(gdf: gpd.GeoDataFrame) -> str | None:
     """

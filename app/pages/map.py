@@ -135,12 +135,14 @@ class MapPageState(rx.State):
     @rx.event
     async def build_map(self, _evt: rx.event.PointerEventInfo | None = None) -> None:
         
+        from app.states.main_state import MainState 
         ms = await self.get_state(MainState)
         
 
 
         # 1) Project slug
         slug = self.project_slug or (ms.active_project_slug or "")
+        id_field = ms.id_field_by_project.get(slug, "")
         if not slug:
             slug = ms.active_project_slug or ""
 
@@ -158,36 +160,33 @@ class MapPageState(rx.State):
             return
 
         #id_field = MainState.id_field_by_project.get(slug, "") or None
-        # 3) Directory di output runtime (NO assets/)
-        out_root = rx.get_upload_dir()           # Path backend "pubblico" a runtime
+
+ #        3) Cartella output runtime
+        out_root = rx.get_upload_dir()
         maps_dir = out_root / "maps"
         maps_dir.mkdir(parents=True, exist_ok=True)
 
-        # filename unico per bustare la cache (incorporo slug e contatore)
         fname = f"map_{slug}_{self.reload_token + 1}.html"
         out_html = maps_dir / fname
 
-        
-        # 4) Recupera la colonna ID scelta in 'Dati e Import' (valore Python)
-        id_map = ms.id_field_by_project if isinstance(ms.id_field_by_project, dict) else {}
-        id_field = id_map.get(slug) or None
-        if isinstance(id_field, str) and not id_field.strip():
-            id_field = None  # lascia l’euristica lato servizio se stringa vuota
-
-        print("DEBUG -> id_field:", id_field, "slug:", slug, "kind:", kind)
+        # --- NEW: collect overlay paths (se presenti) ---
+        overlay_geojsons = []
+        if isinstance(ms.pvgis_overlay_geojsons, list):
+            for rel in ms.pvgis_overlay_geojsons:
+                p = out_root / rel  # i rel path vengono dal servizio
+                if p.exists():
+                    overlay_geojsons.append(p)
 
         try:
             if kind == "shp":
-                
                 from app.services.folium_map import build_map_from_shp
-                build_map_from_shp(p, out_html, id_field=id_field)
-
+                build_map_from_shp(p, out_html, id_field=id_field, overlay_geojsons=overlay_geojsons)
             elif kind == "geojson":
-                
                 from app.services.folium_map import build_map_from_geojson
-                build_map_from_geojson(p, out_html, id_field=id_field)
-
+                build_map_from_geojson(p, out_html, id_field=id_field, overlay_geojsons=overlay_geojsons)
             else:
+                # ...
+
                 self.last_status = f"Tipo layer non supportato: {kind}"
                 self.map_relpath = ""
                 return
